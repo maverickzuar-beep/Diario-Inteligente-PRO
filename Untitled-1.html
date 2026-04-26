@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diario Inteligente PRO</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+/* RESET */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* BODY */
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0f0f0f;
+    color: #fff;
+}
+
+/* CONTAINER */
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+
+/* HEADER */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    color: #00ffc3;
+    font-size: 2.5rem;
+}
+
+/* GRID */
+.grid {
+    display: grid;
+    gap: 20px;
+}
+
+/* DESKTOP */
+@media (min-width: 900px) {
+    .grid {
+        grid-template-columns: 2fr 1fr;
+    }
+}
+
+/* CARD */
+.card {
+    background: #1a1a1a;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 0 15px rgba(0,255,195,0.1);
+    transition: 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+}
+
+/* TEXTAREA */
+textarea {
+    width: 100%;
+    height: 120px;
+    border-radius: 10px;
+    padding: 12px;
+    border: none;
+    margin-top: 10px;
+    background: #2a2a2a;
+    color: #fff;
+    resize: none;
+}
+
+/* SELECTS */
+.select-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+select {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+/* BUTTON */
+button {
+    margin-top: 15px;
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: #00ffc3;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+button:hover {
+    background: #00d9a6;
+}
+
+/* RESULT */
+.resultado p {
+    margin-top: 10px;
+    line-height: 1.5;
+}
+
+/* HISTORIAL */
+.historial-item {
+    background: #2a2a2a;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+/* CHART */
+canvas {
+    margin-top: 20px;
+}
+
+/* MOBILE */
+@media (max-width: 600px) {
+    header h1 {
+        font-size: 1.8rem;
+    }
+
+    .select-group {
+        flex-direction: column;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<header>
+    <h1>🧠 Diario Inteligente PRO</h1>
+</header>
+
+<div class="grid">
+
+    <!-- IZQUIERDA -->
+    <div class="card">
+        <h2>Escribe tu día</h2>
+
+        <textarea id="texto" placeholder="¿Cómo te sientes hoy?"></textarea>
+
+        <div class="select-group">
+            <select id="emocion">
+                <option value="feliz">😊 Feliz</option>
+                <option value="estresado">😓 Estresado</option>
+                <option value="triste">😔 Triste</option>
+                <option value="motivado">🔥 Motivado</option>
+            </select>
+
+            <select id="rendimiento">
+                <option value="alto">🚀 Alto</option>
+                <option value="medio">⚖️ Medio</option>
+                <option value="bajo">🐢 Bajo</option>
+            </select>
+        </div>
+
+        <button onclick="analizar()">Analizar día</button>
+
+        <div class="resultado" id="resultado"></div>
+    </div>
+
+    <!-- DERECHA -->
+    <div class="card">
+        <h3>📅 Historial</h3>
+        <div id="lista"></div>
+
+        <canvas id="grafica"></canvas>
+    </div>
+
+</div>
+
+</div>
+
+<script>
+
+let datos = JSON.parse(localStorage.getItem("diario")) || [];
+
+function analizar() {
+    let texto = document.getElementById("texto").value.toLowerCase();
+    let emocion = document.getElementById("emocion").value;
+    let rendimiento = document.getElementById("rendimiento").value;
+
+    if (!texto.trim()) {
+        alert("Escribe algo primero.");
+        return;
+    }
+
+    let consejo = "";
+
+    if (texto.includes("cansado")) {
+        consejo = "Tu cuerpo pide descanso.";
+    } else if (texto.includes("sin ganas")) {
+        consejo = "Empieza pequeño.";
+    } else if (texto.includes("ansioso")) {
+        consejo = "Respira y baja el ritmo.";
+    } else if (emocion === "estresado" && rendimiento === "bajo") {
+        consejo = "Reduce intensidad hoy.";
+    } else if (emocion === "triste") {
+        consejo = "Habla con alguien.";
+    } else if (emocion === "motivado" && rendimiento === "alto") {
+        consejo = "Estás en tu mejor momento.";
+    } else {
+        consejo = "Sigue constante.";
+    }
+
+    let registro = {
+        texto,
+        emocion,
+        rendimiento,
+        consejo,
+        fecha: new Date().toLocaleDateString()
+    };
+
+    datos.push(registro);
+    localStorage.setItem("diario", JSON.stringify(datos));
+
+    mostrarResultado(registro);
+    mostrarHistorial();
+    actualizarGrafica();
+
+    document.getElementById("texto").value = "";
+}
+
+function mostrarResultado(r) {
+    document.getElementById("resultado").innerHTML = `
+        <h3>Resultado</h3>
+        <p>${r.texto}</p>
+        <p><strong>Consejo:</strong> ${r.consejo}</p>
+    `;
+}
+
+function mostrarHistorial() {
+    let lista = document.getElementById("lista");
+    lista.innerHTML = "";
+
+    datos.slice(-5).reverse().forEach(d => {
+        lista.innerHTML += `
+            <div class="historial-item">
+                ${d.fecha} - ${d.emocion} - ${d.rendimiento}
+            </div>
+        `;
+    });
+}
+
+function actualizarGrafica() {
+    let emociones = { feliz:0, estresado:0, triste:0, motivado:0 };
+
+    datos.forEach(d => emociones[d.emocion]++);
+
+    let ctx = document.getElementById("grafica");
+
+    if (window.miGrafica) window.miGrafica.destroy();
+
+    window.miGrafica = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: ["Feliz","Estresado","Triste","Motivado"],
+            datasets: [{
+                label: "Estado emocional",
+                data: Object.values(emociones)
+            }]
+        }
+    });
+}
+
+mostrarHistorial();
+actualizarGrafica();
+
+</script>
+
+</body>
+</html>
